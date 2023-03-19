@@ -1,0 +1,212 @@
+﻿@page "/add"
+
+@using TravelAgency.Data;
+
+<h2 class="text-center mx-auto mb-3">Flight Finder</h2>
+<div class="d-inline-block w-100">
+	<div class="d-inline-block mb-4" style="width: 24%; margin-right: 1%;">
+		From:
+		<select id="source" class="form-control dropdown" @bind="@SelectedSource">
+		<option value="Any">Any</option>
+		@foreach (var value in ReservationManager.Instance.Airports.Keys)
+		{
+			<option value="@value">@value</option>
+		}
+		</select>
+	</div>
+	<div style="display: inline-block; width: 23%; margin-left: 1%; margin-right: 1%;">
+		To:
+		<select id="destination" class="form-control dropdown" @bind="@SelectedDestination">
+		<option value="Any">Any</option>
+		@foreach (var value in ReservationManager.Instance.Airports.Keys)
+		{
+			<option value="@value">@value</option>
+		}
+		</select>
+	</div>
+	<div style="display: inline-block; width: 23%; margin-left: 1%; margin-right: 1%;">
+		Day:
+		<select id="day" class="form-control dropdown" @bind="@FlightDaySearch">
+			<option value="Any">Any</option>
+			@foreach (var value in Enum.GetNames(typeof(DayOfWeek)))
+			{
+				<option value="@value">@value</option>
+			}
+			</select>
+	</div>
+	<div style="display: inline-block; text-align: center; width: 22.5%; margin-left: 1%;">
+		<button class="btn btn-primary w-100" @onclick="FindFlights">Find flights</button>
+	</div>
+</div>
+
+<h2 class="text-center mx-auto mb-3">Flights</h2>
+<div class="d-inline-block w-100 border mb-5">
+	@if (Items.Count > 0)
+	{
+		<ul>
+			@foreach (var item in Items)
+			{
+			<li>@item</li>
+			}
+		</ul>
+	}
+	else
+	{
+		<p>Loading...</p>
+	}
+</div>
+
+<h2 class="text-center mx-auto mb-3">Reserve</h2>
+Flight:
+<input class="form-control d-inline-block w-100" placeholder="Flight" readonly="readonly" type="text" @bind="@FlightCode"/>
+Airline:
+<input class="form-control d-inline-block w-100" placeholder="Airline" readonly="readonly" type="text" @bind="@AirlineName"/>
+Day:
+<input class="form-control d-inline-block w-100" placeholder="Day" readonly="readonly" type="text" @bind="@FlightDayInput"/>
+Time:
+<input class="form-control d-inline-block w-100" placeholder="Time" readonly="readonly" type="text" @bind="@FlightTime"/>
+Cost:
+<input class="form-control d-inline-block w-100" placeholder="Cost" readonly="readonly" type="text" @bind="@FlightCost"/>
+Name:
+<input class="form-control d-inline-block w-100" placeholder="Name" type="text" @bind="@PassengerName"/>
+Citizenship:
+<input class="form-control d-inline-block w-100" placeholder="Citizenship" type="text" @bind="@PassengerCitizenship"/>
+
+<div class="col-md-offset-2 col-md-5 w-100 text-center">
+	<button class="btn btn-primary" style="margin-top: 20px; width: 250px" @onclick="ReserveFlight">Reserve</button>
+	@if (showError)
+	{
+		<div class="alert alert-danger" style="margin-top:10px">
+			Invalid Input, Try again.
+		</div>
+	}
+	<p class="m-2">Reservation Code:@ReservationCode</p>
+</div>
+
+<div style="height: 100px"></div>
+
+@code {
+	// Binded to the input fields
+	private string FlightCode { get; set; }
+	private string AirlineName { get; set; }
+	private DayOfWeek FlightDayInput { get; set; }
+	private TimeSpan FlightTime { get; set; }
+	private decimal FlightCost { get; set; }
+	private string PassengerName { get; set; }
+	private string PassengerCitizenship { get; set; }
+	private string SelectedSource { get; set; }
+	private string SelectedDestination { get; set; }
+	private string FlightDaySearch { get; set; }
+	private string ReservationCode { get; set; }
+	bool showError { get; set; }
+
+	private Flight SearchedFlight { get; set; }
+	List<string> Items = new List<string>();
+
+	// Binded to the Find Flights button to find flights and load in the div as list
+	private void FindFlights()
+	{
+		if (FlightDaySearch == "Any")
+		{
+			FlightDaySearch = null;
+		}
+		if (SelectedDestination == "Any")
+		{
+			SelectedDestination = null;
+		}
+		if (SelectedSource == "Any")
+		{
+			SelectedSource = null;
+		}
+		List<Flight> flights = new List<Flight>();
+		try
+		{
+			// Load the flights from the manager
+			flights = ReservationManager.Instance.FindFlights(SelectedSource, SelectedDestination, FlightDaySearch);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex.Message);
+		}
+		// Clear the list and hide the error and clear search feilds
+		showError = false;
+		Items.Clear();
+		SelectedSource = "Any";
+		SelectedDestination = "Any";
+		FlightDaySearch = "Any";
+
+		// If the object is found display the flight details in the fields
+		if (flights.Count == 1)
+		{
+			var flight = flights[0];
+			SearchedFlight = flight;
+			FlightCode = flight.FlightCode;
+			AirlineName = flight.Airline;
+			FlightDayInput = flight.DayOfWeek;
+			FlightTime = flight.Time;
+			FlightCost = flight.Cost;
+			PassengerName = "";
+			PassengerCitizenship = "";
+		}
+		else
+		{
+			// Load all the object in the div as list while clear out all the fields.
+			SearchedFlight = null;
+			FlightCode = "";
+			AirlineName = "";
+			FlightDayInput = DayOfWeek.Sunday;
+			FlightTime = new TimeSpan(0, 0, 0);
+			FlightCost = 0;
+			PassengerName = "";
+			PassengerCitizenship = "";
+
+			foreach (var flight in flights)
+			{
+				try
+				{
+					Items.Add(flight.ToString());
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.Message);
+				}
+			}
+		}
+	}
+
+	// Binded to the Reserve button to reserve the flight
+	private void ReserveFlight()
+	{
+		// If the flight is found and the parameters are also not empty
+		if (SearchedFlight != null && !String.IsNullOrEmpty(PassengerName) && !String.IsNullOrEmpty(PassengerCitizenship))
+		{
+			// disable the error
+			showError = false;
+			try
+			{
+				// Reserve the flight and clear the fields
+				ReservationCode = ReservationManager.Instance.MakeReservation(SearchedFlight, PassengerName, PassengerCitizenship).ReservationCode;
+				SearchedFlight = null;
+				FlightCode = "";
+				AirlineName = "";
+				FlightDayInput = DayOfWeek.Sunday;
+				FlightTime = new TimeSpan(0, 0, 0);
+				FlightCost = 0;
+				PassengerName = "";
+				PassengerCitizenship = "";
+			}
+			catch (Exception ex)
+			{
+				// If the reservation is not possible show the error
+				showError = true;
+				Console.WriteLine(ex.Message);
+			}
+		}
+		else
+		{
+			// If the flight is not found or the parameters are empty show the error
+			showError = true;
+		}
+	}
+}
+
