@@ -1,0 +1,199 @@
+﻿@page "/edit"
+
+@using TravelAgency.Data;
+
+<h2 class="text-center mx-auto mb-3">Reservation Finder</h2>
+<div class="d-inline-block w-100">
+	<div class="d-inline-block mb-4" style="width: 24%; margin-right: 1%;">
+		Code:
+		<input style="display: inline-block; width: 100%;" type="text" class="form-control" @bind="@SelectedCode"/>
+	</div>
+	<div style="display: inline-block; width: 23%; margin-left: 1%; margin-right: 1%;">
+		Airline:
+		<input style="display: inline-block; width: 100%;" type="text" class="form-control" @bind="@SelectedAirlineName"/>
+	</div>
+	<div style="display: inline-block; width: 23%; margin-left: 1%; margin-right: 1%;">
+		Name:
+		<input style="display: inline-block; width: 100%;" type="text" class="form-control" @bind="@SelectedPassengerName"/>
+	</div>
+	<div style="display: inline-block; text-align: center; width: 22.5%; margin-left: 1%;">
+		<button class="btn btn-primary w-100" @onclick="FindAllReservations">Find reservations</button>
+	</div>
+</div>
+
+<h2 class="text-center mx-auto mb-3">Reservations</h2>
+<div class="d-inline-block w-100 border mb-5">
+	@if (Items.Count > 0)
+	{
+			<ul>
+			@foreach (var item in Items)
+			{
+					<li>@item</li>
+			}
+			</ul>
+	}
+	else
+	{
+			<p>Loading...</p>
+	}
+</div>
+
+<h2 class="text-center mx-auto mb-3">Reserve</h2>
+Flight:
+<input class="form-control d-inline-block w-100" placeholder="Flight" readonly="readonly" type="text" @bind="@FlightCode"/>
+Airline:
+<input class="form-control d-inline-block w-100" placeholder="Airline" readonly="readonly" type="text" @bind="@AirlineName"/>
+Day:
+<input class="form-control d-inline-block w-100" placeholder="Day" readonly="readonly" type="text" @bind="@FlightDayInput"/>
+Cost:
+<input class="form-control d-inline-block w-100" placeholder="Cost" readonly="readonly" type="text" @bind="@FlightCost"/>
+Name:
+<input class="form-control d-inline-block w-100" placeholder="Name" type="text" @bind="@PassengerName"/>
+Citizenship:
+<input class="form-control d-inline-block w-100" placeholder="Citizenship" type="text" @bind="@PassengerCitizenship"/>
+Status:
+<select class="form-control dropdown dropdown-toggle" data-toggle="dropdown" @bind="@ReservationStatus">
+	<option value="option1">Active</option>
+	<option value="option2">Inactive</option>
+</select>
+
+<div class="col-md-offset-2 col-md-5 w-100 text-center">
+	<button class="btn btn-primary" style="margin-top: 20px; width: 250px" @onclick="UpdateReservation">Save</button>
+	@if (showError)
+	{
+			<div class="alert alert-danger" style="margin-top:10px">
+				Invalid Input, Try again.
+			</div>
+	}
+</div>
+
+<div style="height: 100px"></div>
+
+@code {
+	// Properties binded to the UI
+	private string FlightCode { get; set; }
+	private string AirlineName { get; set; }
+	private DayOfWeek FlightDayInput { get; set; }
+	private decimal FlightCost { get; set; }
+	private string PassengerName { get; set; }
+	private string PassengerCitizenship { get; set; }
+	private string ReservationStatus { get; set; }
+
+	private string SelectedCode { get; set; }
+	private string SelectedAirlineName { get; set; }
+	private string SelectedPassengerName { get; set; }
+	bool showError { get; set; }
+
+	private Reservation SearchedReservation { get; set; }
+	List<string> Items = new List<string>();
+
+	// Binded to the Find reservations button to find reservations and load in the div as list
+	private void FindAllReservations()
+	{
+		List<Reservation> reservations = new List<Reservation>();
+		try
+		{
+			// Load the reservations found from the manager
+			reservations = ReservationManager.Instance.FindReservations(SelectedCode, SelectedAirlineName, SelectedPassengerName);
+		}
+		catch (Exception ex)
+		{
+			// If there is an error, show it in the UI
+			Console.WriteLine(ex.Message);
+		}
+
+		// Clear the list and disable the error
+		Items.Clear();
+		showError = false;
+
+		// If the reservation is found when it is searched display it in the fields
+		if (reservations.Count == 1 && !String.IsNullOrEmpty(SelectedCode) && !String.IsNullOrEmpty(SelectedAirlineName) && !String.IsNullOrEmpty(SelectedPassengerName))
+		{
+			var reservation = reservations[0];
+			SearchedReservation = reservation;
+			FlightCode = reservation.Flight.FlightCode;
+			AirlineName = reservation.Flight.Airline;
+			FlightDayInput = reservation.Flight.DayOfWeek;
+			FlightCost = reservation.Flight.Cost;
+			PassengerName = reservation.TravelerName;
+			PassengerCitizenship = reservation.Citizenship;
+			if (reservation.IsActive)
+			{
+				ReservationStatus = "option1";
+			}
+			else
+			{
+				ReservationStatus = "option2";
+			}
+		}
+		else
+		{
+			// Otherwise just show all the reservations found in the div as the list
+			SearchedReservation = null;
+			FlightCode = "";
+			AirlineName = "";
+			FlightDayInput = DayOfWeek.Sunday;
+			FlightCost = 0;
+			PassengerName = "";
+			PassengerCitizenship = "";
+
+			foreach (var reservation in reservations)
+			{
+				try
+				{
+					Items.Add(reservation.ToString());
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.Message);
+				}
+			}
+		}
+
+		// Clear the selection fields
+		SelectedCode = "";
+		SelectedAirlineName = "";
+		SelectedPassengerName = "";
+	}
+
+	// Binded to the Update button to update the reservation
+	private void UpdateReservation()
+	{
+		// If the reservation is found and the fields are not empty, update the reservation
+		if (SearchedReservation != null && !String.IsNullOrEmpty(PassengerName) && !String.IsNullOrEmpty(PassengerCitizenship))
+		{
+			// Disable the error
+			showError = false;
+			try
+			{
+				bool isActive;
+				if (ReservationStatus == "option1")
+				{
+					isActive = true;
+				}else
+				{
+					isActive = false;
+				}
+				// Update the reservation with the new values from the fields and save it to the file again.
+				ReservationManager.Instance.UpdateReservation(SearchedReservation, PassengerName, PassengerCitizenship, isActive);
+				SearchedReservation = null;
+				FlightCode = "";
+				AirlineName = "";
+				FlightDayInput = DayOfWeek.Sunday;
+				FlightCost = 0;
+				PassengerName = "";
+				PassengerCitizenship = "";
+			}
+			catch (Exception ex)
+			{
+				showError = true;
+				Console.WriteLine(ex.Message);
+			}
+		}
+		else
+		{
+			// Otherwise show an error
+			showError = true;
+		}
+	}
+}
